@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import '../core/app_bar.dart';
 import '../services/auth_service.dart';
 import 'delete_account_screen.dart';
 import 'login_screen.dart';
@@ -78,9 +79,8 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('Dashboard'),
+      appBar: LeadMantraAppBar(
+        title: 'Dashboard',
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {

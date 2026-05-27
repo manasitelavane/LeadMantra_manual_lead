@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../core/app_bar.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
@@ -61,20 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        title: Image.asset(
-          'assets/images/logo_2 1.png',
-          height: 55,
-          fit: BoxFit.contain,
-          errorBuilder: (ctx, err, st) => const Text('LeadMantraCRM'),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(3),
-          child: Container(color: AppTheme.accent, height: 3),
-        ),
-      ),
+      appBar: const LeadMantraAppBar(automaticallyImplyLeading: false),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),

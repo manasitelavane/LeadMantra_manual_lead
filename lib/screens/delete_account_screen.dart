@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../core/app_bar.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -97,19 +98,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        centerTitle: true,
-        title: Image.asset(
-          'assets/images/logo_2 1.png',
-          height: 55,
-          fit: BoxFit.contain,
-          errorBuilder: (ctx, err, st) => const Text('LeadMantraCRM'),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(3),
-          child: Container(color: Colors.red, height: 3),
-        ),
-      ),
+      appBar: const LeadMantraAppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),

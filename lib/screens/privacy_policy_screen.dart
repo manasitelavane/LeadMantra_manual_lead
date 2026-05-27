@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../core/app_bar.dart';
 
 import '../core/theme.dart';
 
@@ -36,10 +37,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Privacy Policy'),
-        centerTitle: true,
-      ),
+      appBar: const LeadMantraAppBar(title: 'Privacy Policy'),
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
