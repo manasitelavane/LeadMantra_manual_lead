@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -105,7 +105,6 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           fit: BoxFit.contain,
           errorBuilder: (ctx, err, st) => const Text('LeadMantraCRM'),
         ),
-        backgroundColor: AppTheme.primary,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(3),
           child: Container(color: Colors.red, height: 3),

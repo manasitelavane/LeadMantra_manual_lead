@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/theme.dart';
 import '../services/auth_service.dart';
 import 'delete_account_screen.dart';
 import 'login_screen.dart';
@@ -82,7 +81,6 @@ class DashboardScreen extends StatelessWidget {
       appBar: AppBar(
         centerTitle: true,
         title: const Text('Dashboard'),
-        backgroundColor: AppTheme.primary,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {

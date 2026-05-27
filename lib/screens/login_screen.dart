@@ -70,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
           fit: BoxFit.contain,
           errorBuilder: (ctx, err, st) => const Text('LeadMantraCRM'),
         ),
-        backgroundColor: AppTheme.primary,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(3),
           child: Container(color: AppTheme.accent, height: 3),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../core/theme.dart';
@@ -39,7 +39,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       appBar: AppBar(
         title: const Text('Privacy Policy'),
         centerTitle: true,
-        backgroundColor: AppTheme.primary,
       ),
       body: Stack(
         children: [
