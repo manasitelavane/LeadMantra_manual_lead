@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '../core/app_bar.dart';
+import '../core/app_dialog.dart';
 import '../services/auth_service.dart';
 import 'delete_account_screen.dart';
 import 'login_screen.dart';
@@ -52,27 +53,13 @@ class DashboardScreen extends StatelessWidget {
   }
 
   void _confirmLogout(BuildContext context) {
-    showDialog<void>(
+    AppDialog.show(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Logout'),
-          content: const Text('Are you sure you want to logout?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _logout(context);
-              },
-              child: const Text('Logout', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
+      icon: Icons.logout_rounded,
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmLabel: 'Logout',
+      onConfirm: () => _logout(context),
     );
   }
 
