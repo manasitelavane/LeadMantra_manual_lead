@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.onesnzeros.leadmantra"
+    namespace = "com.example.leadmantra"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

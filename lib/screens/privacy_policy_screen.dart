@@ -25,13 +25,17 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (_) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-            }
+            if (mounted) setState(() => _isLoading = false);
+          },
+          onWebResourceError: (_) {
+            if (mounted) setState(() => _isLoading = false);
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.url));
+      ..loadRequest(
+        Uri.parse(widget.url),
+        headers: const {'Cache-Control': 'no-cache, no-store, must-revalidate'},
+      );
   }
 
   @override

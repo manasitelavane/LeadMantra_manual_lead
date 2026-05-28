@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import '../services/auth_service.dart';
+import '../services/lead_service.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 import 'policy_agreement_screen.dart';
@@ -24,6 +25,7 @@ class _LauncherScreenState extends State<LauncherScreen> {
 
   Future<void> _init() async {
     await AuthService.instance.initialize();
+    await LeadService.instance.initialize();
     // Dismiss the native splash now that we know where to navigate.
     FlutterNativeSplash.remove();
     _navigate();

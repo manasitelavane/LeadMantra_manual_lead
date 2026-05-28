@@ -4,6 +4,7 @@ import '../core/app_bar.dart';
 import '../core/app_dialog.dart';
 import '../core/theme.dart';
 import '../services/auth_service.dart';
+import '../services/lead_service.dart';
 import 'delete_account_screen.dart';
 import 'leads_screen.dart';
 import 'new_lead_screen.dart';
@@ -270,54 +271,60 @@ class _LeadStatsCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Stat row
-          IntrinsicHeight(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _StatItem(
-                    label: 'Total Leads',
-                    value: '--',
-                    iconData: Icons.people_alt_rounded,
-                    iconColor: AppTheme.primary,
-                    valueColor: AppTheme.primary,
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.total))),
-                  ),
+          ListenableBuilder(
+            listenable: LeadService.instance,
+            builder: (context, _) {
+              final svc = LeadService.instance;
+              return IntrinsicHeight(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _StatItem(
+                        label: 'Total Leads',
+                        value: '${svc.allLeads.length}',
+                        iconData: Icons.people_alt_rounded,
+                        iconColor: AppTheme.primary,
+                        valueColor: AppTheme.primary,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.total))),
+                      ),
+                    ),
+                    VerticalDivider(
+                      color: Colors.grey.shade200,
+                      thickness: 1,
+                      width: 1,
+                    ),
+                    Expanded(
+                      child: _StatItem(
+                        label: 'Uploaded',
+                        value: '${svc.uploadedLeads.length}',
+                        iconData: Icons.upload_rounded,
+                        iconColor: AppTheme.accent,
+                        valueColor: AppTheme.accent,
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.uploaded))),
+                      ),
+                    ),
+                    VerticalDivider(
+                      color: Colors.grey.shade200,
+                      thickness: 1,
+                      width: 1,
+                    ),
+                    Expanded(
+                      child: _StatItem(
+                        label: 'Offline',
+                        value: '${svc.offlineLeads.length}',
+                        iconData: Icons.wifi_off_rounded,
+                        iconColor: const Color(0xFF78909C),
+                        valueColor: const Color(0xFF78909C),
+                        onTap: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.offline))),
+                      ),
+                    ),
+                  ],
                 ),
-                VerticalDivider(
-                  color: Colors.grey.shade200,
-                  thickness: 1,
-                  width: 1,
-                ),
-                Expanded(
-                  child: _StatItem(
-                    label: 'Uploaded',
-                    value: '--',
-                    iconData: Icons.upload_rounded,
-                    iconColor: AppTheme.accent,
-                    valueColor: AppTheme.accent,
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.uploaded))),
-                  ),
-                ),
-                VerticalDivider(
-                  color: Colors.grey.shade200,
-                  thickness: 1,
-                  width: 1,
-                ),
-                Expanded(
-                  child: _StatItem(
-                    label: 'Offline',
-                    value: '--',
-                    iconData: Icons.wifi_off_rounded,
-                    iconColor: Color(0xFF78909C),
-                    valueColor: Color(0xFF78909C),
-                    onTap: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.offline))),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),

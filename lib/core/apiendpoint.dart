@@ -5,5 +5,8 @@ class ApiEndpoint {
   static const String login = '$baseUrl/login';
   static const String deleteAccount = '$baseUrl/delete-account';
 
-  // Add more endpoint constants here
+  // Leads
+  static const String createLead = '$baseUrl/leads';
+  static const String syncLeads  = '$baseUrl/leads/sync';
+  static String updateLead(int id) => '$baseUrl/leads/$id';
 }

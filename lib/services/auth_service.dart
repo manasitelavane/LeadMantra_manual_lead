@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -100,22 +102,22 @@ class AuthService {
 
   Future<AuthResult> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiEndpoint.login),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(ApiEndpoint.login),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 15));
 
+      if (response.statusCode == 401) {
+        return AuthResult(
+            success: false, error: 'Invalid email or password.');
+      }
       if (response.statusCode != 200) {
         return AuthResult(
-          success: false,
-          error: 'Login failed: ${response.statusCode}',
-        );
+            success: false,
+            error: 'Server error (${response.statusCode}). Please try again.');
       }
 
       final Map<String, dynamic> body = jsonDecode(response.body);
@@ -143,13 +145,20 @@ class AuthService {
 
       return AuthResult(
         success: false,
-        error: body['message'] as String? ?? 'Invalid login response',
+        error: body['message'] as String? ?? 'Invalid email or password.',
       );
+    } on TimeoutException {
+      return AuthResult(
+          success: false,
+          error: 'Connection timed out. Please check your internet and try again.');
+    } on SocketException {
+      return AuthResult(
+          success: false,
+          error: 'No internet connection. Please check your network and try again.');
     } catch (error) {
       return AuthResult(
-        success: false,
-        error: 'Unable to login. Please try again.',
-      );
+          success: false,
+          error: 'Login failed. Please try again.');
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../core/app_bar.dart';
 import '../core/theme.dart';
+import '../services/lead_service.dart';
 
 class NewLeadScreen extends StatefulWidget {
   const NewLeadScreen({super.key});
@@ -66,15 +67,46 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
 
   // ── Submit ───────────────────────────────────────────────────────────────
 
+  String _mapStatus(String display) {
+    switch (display) {
+      case 'Contacted':  return 'contacted';
+      case 'Follow Up':  return 'follow_up';
+      case 'Closed':     return 'closed';
+      case 'Lost':       return 'lost';
+      default:           return 'new';
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // TODO: call create-lead API
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    final result = await LeadService.instance.createLead(
+      name: _companyCtrl.text.trim(),
+      contactPerson: _contactCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      address: _addressCtrl.text.trim(),
+      gstin: _gstinCtrl.text.trim(),
+      stateName: _stateNameCtrl.text.trim(),
+      stateCode: _stateCodeCtrl.text.trim(),
+      status: _mapStatus(_status),
+      source: _leadSource == '— Unknown —' ? '' : _leadSource,
+      dealValue: double.tryParse(_dealValueCtrl.text) ?? 0.0,
+      lostReason: _isLost ? _lostReason : null,
+      lostReasonNote: _isLost ? _additionalNoteCtrl.text.trim() : null,
+    );
 
     if (!mounted) return;
     setState(() => _isLoading = false);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _LeadResultDialog(isOffline: result.isOffline),
+    );
+
+    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -477,6 +509,80 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       isDense: true,
+    );
+  }
+}
+
+// ── Result dialog ────────────────────────────────────────────────────────────
+
+class _LeadResultDialog extends StatelessWidget {
+  const _LeadResultDialog({required this.isOffline});
+  final bool isOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: isOffline
+                    ? const Color(0xFF78909C).withValues(alpha: 0.12)
+                    : Colors.green.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isOffline ? Icons.wifi_off_rounded : Icons.check_circle_rounded,
+                color: isOffline ? const Color(0xFF78909C) : Colors.green,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isOffline ? 'Saved Offline' : 'Lead Created!',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isOffline
+                  ? 'No internet connection. Your lead has been saved and will sync automatically when you are back online.'
+                  : 'Your lead has been successfully created and uploaded to the server.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.5),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK',
+                    style:
+                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
