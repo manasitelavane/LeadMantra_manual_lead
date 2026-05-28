@@ -216,6 +216,27 @@ Calls `AuthService.init()` synchronously before `runApp()`, then selects the cor
 
 ---
 
+## Android Release Signing
+
+Keystore details used for Play Store release signing:
+
+| Field | Value |
+|---|---|
+| Keystore file | `android/app/leadmantra.jks` |
+| Key alias | `leadmantra` |
+| Key password | `LeadMantra@2026` |
+| Keystore password | `LeadMantra@2026` |
+| First & Last Name | Pratik Kulkarni |
+| Organization Unit | OnesNZeros Tech Solutions |
+| Organization | OnesNZeros Tech Solutions |
+| City | Pune |
+| State | Maharashtra |
+| Country Code | IN |
+
+> **Important:** Never commit `leadmantra.jks` to version control. Keep a secure backup — losing this keystore means you cannot publish updates to the app on Play Store.
+
+---
+
 ## Contributing
 
 1. Fork the repo and create a feature branch: `git checkout -b feature/my-feature`
