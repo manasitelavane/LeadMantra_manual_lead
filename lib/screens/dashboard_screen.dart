@@ -8,6 +8,7 @@ import '../services/lead_service.dart';
 import 'delete_account_screen.dart';
 import 'leads_screen.dart';
 import 'new_lead_screen.dart';
+import 'total_leads_screen.dart';
 import 'login_screen.dart';
 import 'privacy_policy_screen.dart';
 
@@ -223,8 +224,20 @@ class _GreetingCard extends StatelessWidget {
 
 // ── Lead stats card ──────────────────────────────────────────────────────────
 
-class _LeadStatsCard extends StatelessWidget {
+class _LeadStatsCard extends StatefulWidget {
   const _LeadStatsCard();
+
+  @override
+  State<_LeadStatsCard> createState() => _LeadStatsCardState();
+}
+
+class _LeadStatsCardState extends State<_LeadStatsCard> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch backend total in the background so the count reflects all leads
+    LeadService.instance.fetchLeads(page: 1, perPage: 1);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -275,18 +288,20 @@ class _LeadStatsCard extends StatelessWidget {
             listenable: LeadService.instance,
             builder: (context, _) {
               final svc = LeadService.instance;
+              final totalValue = svc.remoteTotal?.toString() ?? '--';
               return IntrinsicHeight(
                 child: Row(
                   children: [
                     Expanded(
                       child: _StatItem(
                         label: 'Total Leads',
-                        value: '${svc.allLeads.length}',
+                        value: totalValue,
                         iconData: Icons.people_alt_rounded,
                         iconColor: AppTheme.primary,
                         valueColor: AppTheme.primary,
                         onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.total))),
+                            MaterialPageRoute(
+                                builder: (_) => const TotalLeadsScreen())),
                       ),
                     ),
                     VerticalDivider(
@@ -302,7 +317,8 @@ class _LeadStatsCard extends StatelessWidget {
                         iconColor: AppTheme.accent,
                         valueColor: AppTheme.accent,
                         onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.uploaded))),
+                            MaterialPageRoute(builder: (_) =>
+                                const LeadsScreen(type: LeadType.uploaded))),
                       ),
                     ),
                     VerticalDivider(
@@ -318,7 +334,8 @@ class _LeadStatsCard extends StatelessWidget {
                         iconColor: const Color(0xFF78909C),
                         valueColor: const Color(0xFF78909C),
                         onTap: () => Navigator.push(context,
-                            MaterialPageRoute(builder: (_) => const LeadsScreen(type: LeadType.offline))),
+                            MaterialPageRoute(builder: (_) =>
+                                const LeadsScreen(type: LeadType.offline))),
                       ),
                     ),
                   ],

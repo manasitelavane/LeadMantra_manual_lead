@@ -8,5 +8,6 @@ class ApiEndpoint {
   // Leads
   static const String createLead = '$baseUrl/leads';
   static const String syncLeads  = '$baseUrl/leads/sync';
+  static const String leadsList  = '$baseUrl/leads/list';
   static String updateLead(int id) => '$baseUrl/leads/$id';
 }

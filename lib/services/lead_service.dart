@@ -9,6 +9,20 @@ import '../core/apiendpoint.dart';
 import '../models/lead.dart';
 import 'auth_service.dart';
 
+class FetchLeadsResult {
+  final bool success;
+  final List<Lead> leads;
+  final int total;
+  final String? error;
+
+  const FetchLeadsResult({
+    required this.success,
+    required this.leads,
+    required this.total,
+    this.error,
+  });
+}
+
 class SyncResult {
   final bool success;
   final int succeeded;
@@ -52,6 +66,9 @@ class LeadService extends ChangeNotifier {
   static const _prefKey = 'leads_list';
 
   List<Lead> _leads = [];
+  int? _remoteTotal;
+
+  int? get remoteTotal => _remoteTotal;
 
   List<Lead> get allLeads => List.unmodifiable(_leads);
   List<Lead> get uploadedLeads =>
@@ -209,6 +226,22 @@ class LeadService extends ChangeNotifier {
       await _save();
       notifyListeners();
       return UpdateLeadResult(success: true, lead: updated);
+    }
+
+    // Lead not in local storage — remote-only lead (localId == backendId string)
+    if (idx == -1) {
+      final remoteId = int.tryParse(localId);
+      if (remoteId == null) {
+        return const UpdateLeadResult(success: false, error: 'Lead not found.');
+      }
+      return _callUpdateApi(
+        backendId: remoteId,
+        status: status,
+        phone: phone,
+        dealValue: dealValue,
+        lostReason: lostReason,
+        lostReasonNote: lostReasonNote,
+      );
     }
 
     // Uploaded lead — call the API
@@ -372,6 +405,143 @@ class LeadService extends ChangeNotifier {
         failed: 0,
         error: 'Something went wrong. Please try again.',
       );
+    }
+  }
+
+  Future<UpdateLeadResult> _callUpdateApi({
+    required int backendId,
+    required String status,
+    required String phone,
+    required double dealValue,
+    String? lostReason,
+    String? lostReasonNote,
+  }) async {
+    try {
+      final token = AuthService.instance.token ?? '';
+      final body = <String, dynamic>{
+        'status': status,
+        'phone': phone,
+        'deal_value': dealValue,
+      };
+      if (status == 'lost') {
+        if (lostReason != null) body['lost_reason'] = lostReason;
+        if (lostReasonNote != null && lostReasonNote.isNotEmpty) {
+          body['lost_reason_note'] = lostReasonNote;
+        }
+      }
+      final response = await http
+          .put(
+            Uri.parse(ApiEndpoint.updateLead(backendId)),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['success'] == true) {
+          return const UpdateLeadResult(success: true);
+        }
+      }
+      return const UpdateLeadResult(
+          success: false, error: 'Server error. Please try again.');
+    } on SocketException {
+      return const UpdateLeadResult(
+          success: false,
+          error: 'No internet connection. Please try again when online.');
+    } catch (_) {
+      return const UpdateLeadResult(
+          success: false, error: 'Something went wrong. Please try again.');
+    }
+  }
+
+  Future<FetchLeadsResult> fetchLeads({
+    String search = '',
+    String status = '',
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    try {
+      final token = AuthService.instance.token ?? '';
+      final response = await http
+          .post(
+            Uri.parse(ApiEndpoint.leadsList),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'search': search,
+              'status': status,
+              'source': '',
+              'per_page': perPage,
+              'page': page,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        if (json['success'] == true) {
+          final data = json['data'] as List<dynamic>;
+          final meta = json['meta'] as Map<String, dynamic>;
+          final total = meta['total'] as int? ?? 0;
+
+          final leads = data.map((e) {
+            final m = e as Map<String, dynamic>;
+            final id = m['id'] as int;
+            return Lead(
+              localId: id.toString(),
+              backendId: id,
+              name: m['name'] as String? ?? '',
+              contactPerson: m['contact_person'] as String? ?? '',
+              email: m['email'] as String? ?? '',
+              phone: m['phone'] as String? ?? '',
+              address: m['address'] as String? ?? '',
+              gstin: m['gstin'] as String? ?? '',
+              stateName: m['state_name'] as String? ?? '',
+              stateCode: m['state_code'] as String? ?? '',
+              status: m['status'] as String? ?? 'new',
+              source: m['source'] as String? ?? '',
+              dealValue: (m['deal_value'] as num?)?.toDouble() ?? 0.0,
+              lostReason: m['lost_reason'] as String?,
+              lostReasonNote: m['lost_reason_note'] as String?,
+              isUploaded: true,
+              createdAt: DateTime.tryParse(
+                      m['created_at'] as String? ?? '') ??
+                  DateTime.now(),
+            );
+          }).toList();
+
+          if (page == 1) {
+            _remoteTotal = total;
+            notifyListeners();
+          }
+
+          return FetchLeadsResult(
+              success: true, leads: leads, total: total);
+        }
+      }
+      return const FetchLeadsResult(
+          success: false,
+          leads: [],
+          total: 0,
+          error: 'Failed to load leads. Please try again.');
+    } on SocketException {
+      return const FetchLeadsResult(
+          success: false,
+          leads: [],
+          total: 0,
+          error: 'No internet connection.');
+    } catch (_) {
+      return const FetchLeadsResult(
+          success: false,
+          leads: [],
+          total: 0,
+          error: 'Something went wrong. Please try again.');
     }
   }
 
