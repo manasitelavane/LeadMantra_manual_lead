@@ -2,8 +2,6 @@
 import 'package:webview_flutter/webview_flutter.dart';
 import '../core/app_bar.dart';
 
-
-
 class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key, this.url = 'https://leadmantracrm.com/privacy-policy'});
 
