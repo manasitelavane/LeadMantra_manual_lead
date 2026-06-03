@@ -264,25 +264,25 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _row([
-            _dropdown(
-              label: 'Lost Reason',
-              labelColor: Colors.red.shade700,
-              value: _lostReason,
-              placeholder: '— Select a reason —',
-              items: _lostReasonOptions,
-              required: true,
-              onChanged: (v) => setState(() => _lostReason = v),
-              fillColor: Colors.white,
-            ),
-            _textField(
-              ctrl: _additionalNoteCtrl,
-              label: 'Additional Note',
-              labelColor: Colors.red.shade700,
-              hint: 'Optional detail...',
-              fillColor: Colors.white,
-            ),
-          ]),
+          _dropdown(
+            label: 'Lost Reason',
+            labelColor: Colors.red.shade700,
+            value: _lostReason,
+            placeholder: '— Select a reason —',
+            items: _lostReasonOptions,
+            required: true,
+            onChanged: (v) => setState(() => _lostReason = v),
+            fillColor: Colors.white,
+          ),
+          const SizedBox(height: 12),
+          _textField(
+            ctrl: _additionalNoteCtrl,
+            label: 'Additional Note',
+            labelColor: Colors.red.shade700,
+            hint: 'Optional detail...',
+            fillColor: Colors.white,
+            maxLines: 3,
+          ),
         ],
       ),
     );
@@ -392,7 +392,7 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: const Text(
-                '\$',
+                '₹',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary),
               ),
             ),
