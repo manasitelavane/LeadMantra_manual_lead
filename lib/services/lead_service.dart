@@ -2,12 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/api_client.dart';
 import '../core/apiendpoint.dart';
 import '../models/lead.dart';
-import 'auth_service.dart';
 
 class FetchLeadsResult {
   final bool success;
@@ -123,7 +122,6 @@ class LeadService extends ChangeNotifier {
     );
 
     try {
-      final token = AuthService.instance.token ?? '';
       final body = <String, dynamic>{
         'name': name,
         'contact_person': contactPerson,
@@ -142,16 +140,11 @@ class LeadService extends ChangeNotifier {
         body['lost_reason_note'] = lostReasonNote;
       }
 
-      final response = await http
-          .post(
-            Uri.parse(ApiEndpoint.createLead),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await ApiClient.post(
+        Uri.parse(ApiEndpoint.createLead),
+        body: body,
+        timeout: const Duration(seconds: 10),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -246,7 +239,6 @@ class LeadService extends ChangeNotifier {
 
     // Uploaded lead — call the API
     try {
-      final token = AuthService.instance.token ?? '';
       final body = <String, dynamic>{
         'status': status,
         'phone': phone,
@@ -259,16 +251,10 @@ class LeadService extends ChangeNotifier {
         }
       }
 
-      final response = await http
-          .put(
-            Uri.parse(ApiEndpoint.updateLead(lead.backendId!)),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await ApiClient.put(
+        Uri.parse(ApiEndpoint.updateLead(lead.backendId!)),
+        body: body,
+      );
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -341,17 +327,11 @@ class LeadService extends ChangeNotifier {
         return op;
       }).toList();
 
-      final token = AuthService.instance.token ?? '';
-      final response = await http
-          .post(
-            Uri.parse(ApiEndpoint.syncLeads),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({'operations': operations}),
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await ApiClient.post(
+        Uri.parse(ApiEndpoint.syncLeads),
+        body: {'operations': operations},
+        timeout: const Duration(seconds: 30),
+      );
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -417,7 +397,6 @@ class LeadService extends ChangeNotifier {
     String? lostReasonNote,
   }) async {
     try {
-      final token = AuthService.instance.token ?? '';
       final body = <String, dynamic>{
         'status': status,
         'phone': phone,
@@ -429,16 +408,10 @@ class LeadService extends ChangeNotifier {
           body['lost_reason_note'] = lostReasonNote;
         }
       }
-      final response = await http
-          .put(
-            Uri.parse(ApiEndpoint.updateLead(backendId)),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(body),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await ApiClient.put(
+        Uri.parse(ApiEndpoint.updateLead(backendId)),
+        body: body,
+      );
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -465,23 +438,16 @@ class LeadService extends ChangeNotifier {
     int perPage = 20,
   }) async {
     try {
-      final token = AuthService.instance.token ?? '';
-      final response = await http
-          .post(
-            Uri.parse(ApiEndpoint.leadsList),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'search': search,
-              'status': status,
-              'source': '',
-              'per_page': perPage,
-              'page': page,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await ApiClient.post(
+        Uri.parse(ApiEndpoint.leadsList),
+        body: {
+          'search': search,
+          'status': status,
+          'source': '',
+          'per_page': perPage,
+          'page': page,
+        },
+      );
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;

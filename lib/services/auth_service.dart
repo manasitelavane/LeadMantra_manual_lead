@@ -5,7 +5,11 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/material.dart';
+
 import '../core/apiendpoint.dart';
+import '../core/app_navigator.dart';
+import '../screens/login_screen.dart';
 
 class AuthResult {
   final bool success;
@@ -77,6 +81,21 @@ class AuthService {
     if (tokenType != null) await prefs.setString(_prefTokenType, tokenType);
     if (user != null) await prefs.setString(_prefUser, jsonEncode(user));
     if (company != null) await prefs.setString(_prefCompany, jsonEncode(company));
+  }
+
+  bool _handlingUnauthorized = false;
+
+  Future<void> handleUnauthorized() async {
+    if (_handlingUnauthorized || !isLoggedIn) return;
+    _handlingUnauthorized = true;
+    await clearSession();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handlingUnauthorized = false;
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    });
   }
 
   Future<void> clearSession() async {
