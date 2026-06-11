@@ -6,7 +6,6 @@ import '../core/app_bar.dart';
 import '../core/theme.dart';
 import '../models/lead.dart';
 import '../services/lead_service.dart';
-import 'edit_lead_screen.dart';
 
 class TotalLeadsScreen extends StatefulWidget {
   const TotalLeadsScreen({super.key});
@@ -375,7 +374,7 @@ class _RemoteLeadCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name + source + edit
+          // Name + source
           Row(
             children: [
               Expanded(
@@ -394,24 +393,6 @@ class _RemoteLeadCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 _SourceBadge(source: lead.source),
               ],
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => EditLeadScreen(lead: lead)),
-                ),
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.edit_rounded,
-                      size: 15, color: AppTheme.primary),
-                ),
-              ),
             ],
           ),
 
