@@ -162,6 +162,7 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                     ctrl: _phoneCtrl,
                     label: 'Phone',
                     hint: '',
+                    required: true,
                     keyboardType: TextInputType.phone,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   ),
