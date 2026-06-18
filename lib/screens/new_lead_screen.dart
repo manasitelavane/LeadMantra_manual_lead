@@ -384,6 +384,13 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
           controller: _dealValueCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(fontSize: 13),
+          validator: (v) {
+            final val = double.tryParse(v ?? '');
+            if (val != null && val > 10000000000) {
+              return 'Deal value cannot exceed ₹1000 Cr';
+            }
+            return null;
+          },
           decoration: _inputDec('0.00').copyWith(
             prefixIcon: Container(
               margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
