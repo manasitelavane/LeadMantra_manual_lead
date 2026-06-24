@@ -156,6 +156,11 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                     label: 'Email',
                     hint: '',
                     keyboardType: TextInputType.emailAddress,
+                    extraValidator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final re = RegExp(r'^[\w\.\+\-]+@[\w\-]+(\.[\w\-]+)*\.[a-z]{2,}$', caseSensitive: false);
+                      return re.hasMatch(v.trim()) ? null : 'Enter a valid email address';
+                    },
                   ),
                   const SizedBox(height: 14),
                   _textField(
@@ -165,6 +170,11 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                     required: true,
                     keyboardType: TextInputType.phone,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    extraValidator: (v) {
+                      final digits = v?.trim() ?? '';
+                      if (digits.length != 10) return 'Phone must be exactly 10 digits';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 14),
                   _textField(
@@ -174,9 +184,29 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 14),
-                  _textField(ctrl: _gstinCtrl, label: 'GSTIN', hint: 'e.g. 27AABCU9603R1ZX'),
+                  _textField(
+                    ctrl: _gstinCtrl,
+                    label: 'GSTIN',
+                    hint: 'e.g. 27AABCU9603R1ZX',
+                    textCapitalization: TextCapitalization.characters,
+                    extraValidator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final re = RegExp(r'^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$');
+                      return re.hasMatch(v.trim().toUpperCase()) ? null : 'Invalid GSTIN format (e.g. 27AABCU9603R1ZX)';
+                    },
+                  ),
                   const SizedBox(height: 14),
-                  _textField(ctrl: _stateNameCtrl, label: 'State Name', hint: 'e.g. Maharashtra'),
+                  _textField(
+                    ctrl: _stateNameCtrl,
+                    label: 'State Name',
+                    hint: 'e.g. Maharashtra',
+                    textCapitalization: TextCapitalization.words,
+                    extraValidator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final re = RegExp(r"^[a-zA-Z\s\-']+$");
+                      return re.hasMatch(v.trim()) ? null : 'State name should contain only letters';
+                    },
+                  ),
                   const SizedBox(height: 14),
                   _textField(
                     ctrl: _stateCodeCtrl,
@@ -184,6 +214,12 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
                     hint: 'e.g. 27',
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    extraValidator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final code = int.tryParse(v.trim());
+                      if (code == null || code < 1 || code > 38) return 'Enter a valid state code (01 – 38)';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 14),
                   _dropdown(
@@ -302,6 +338,8 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
     int maxLines = 1,
     Color? labelColor,
     Color? fillColor,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    String? Function(String?)? extraValidator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,11 +351,14 @@ class _NewLeadScreenState extends State<NewLeadScreen> {
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
           maxLines: maxLines,
+          textCapitalization: textCapitalization,
           style: const TextStyle(fontSize: 13),
           decoration: _inputDec(hint, fill: fillColor, maxLines: maxLines),
-          validator: required
-              ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
-              : null,
+          validator: (v) {
+            if (required && (v == null || v.trim().isEmpty)) return 'Required';
+            if (extraValidator != null) return extraValidator(v);
+            return null;
+          },
         ),
         if (helper != null) ...[
           const SizedBox(height: 4),

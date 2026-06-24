@@ -252,6 +252,12 @@ class _EditLeadScreenState extends State<EditLeadScreen> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: const TextStyle(fontSize: 13),
             decoration: _inputDec('e.g. 9999999999'),
+            validator: (v) {
+              final digits = v?.trim() ?? '';
+              if (digits.isEmpty) return null;
+              if (digits.length != 10) return 'Phone must be exactly 10 digits';
+              return null;
+            },
           ),
 
           const SizedBox(height: 14),
