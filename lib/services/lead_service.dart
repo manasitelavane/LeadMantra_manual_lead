@@ -352,6 +352,14 @@ class LeadService extends ChangeNotifier {
                 _leads[idx] =
                     _leads[idx].copyWith(isUploaded: true, backendId: backendId);
               }
+            } else {
+              final devError = r['dev_error'] as String?;
+              final error    = r['error']     as String?;
+              final action   = r['action']    as String? ?? 'unknown';
+              final localId  = r['local_id'];
+              print('── SYNC FAILED [$action] local_id=$localId');
+              print('   error    : $error');
+              if (devError != null) print('   dev_error: $devError');
             }
           }
 
