@@ -18,6 +18,7 @@ class AuthResult {
   final Map<String, dynamic>? user;
   final Map<String, dynamic>? company;
   final String? error;
+  final bool requiresAdminContact;
 
   AuthResult({
     required this.success,
@@ -26,6 +27,7 @@ class AuthResult {
     this.user,
     this.company,
     this.error,
+    this.requiresAdminContact = false,
   });
 }
 
@@ -132,6 +134,15 @@ class AuthService {
       if (response.statusCode == 401) {
         return AuthResult(
             success: false, error: 'Invalid email or password.');
+      }
+      if (response.statusCode == 403) {
+        String msg = 'API token is not generated for your account. Please contact your administrator.';
+        try {
+          final b = jsonDecode(response.body) as Map<String, dynamic>;
+          msg = b['message'] as String? ?? msg;
+        } catch (_) {}
+        return AuthResult(
+            success: false, error: msg, requiresAdminContact: true);
       }
       if (response.statusCode != 200) {
         return AuthResult(

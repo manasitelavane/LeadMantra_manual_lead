@@ -47,6 +47,30 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
+    } else if (result.requiresAdminContact) {
+      showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.lock_outline_rounded, color: Colors.orange.shade700, size: 22),
+              const SizedBox(width: 8),
+              const Text('Access Restricted', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Text(
+            result.error ?? 'API token is not generated for your account. Please contact your administrator.',
+            style: const TextStyle(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
