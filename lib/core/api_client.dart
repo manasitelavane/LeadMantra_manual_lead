@@ -12,12 +12,39 @@ class ApiClient {
   static Map<String, String> _headers() => {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${AuthService.instance.token ?? ''}',
+        'X-User-Id': '${AuthService.instance.currentUserId ?? ''}',
       };
 
+  static void _log(String method, Uri uri, Map<String, dynamic> body, http.Response response) {
+    // ignore: avoid_print
+    print('── API $method ${uri.path}');
+    // ignore: avoid_print
+    print('   body    : ${jsonEncode(body)}');
+    // ignore: avoid_print
+    print('   status  : ${response.statusCode}');
+    // ignore: avoid_print
+    print('   response: ${response.body}');
+  }
+
+  static const _logoutCodes = {
+    'account_deleted',
+    'company_deleted',
+    'session_invalid',
+    'user_identity_required',
+  };
+
   static Future<void> _check(http.Response response) async {
-    if (response.statusCode == 401 || response.statusCode == 403) {
+    if (response.statusCode == 401) {
       await AuthService.instance.handleUnauthorized();
+      return;
     }
+    try {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final code = body['code'] as String?;
+      if (code != null && _logoutCodes.contains(code)) {
+        await AuthService.instance.handleUnauthorized();
+      }
+    } catch (_) {}
   }
 
   static Future<http.Response> post(
@@ -28,6 +55,7 @@ class ApiClient {
     final response = await http
         .post(uri, headers: _headers(), body: jsonEncode(body))
         .timeout(timeout);
+    _log('POST', uri, body, response);
     await _check(response);
     return response;
   }
@@ -40,6 +68,7 @@ class ApiClient {
     final response = await http
         .put(uri, headers: _headers(), body: jsonEncode(body))
         .timeout(timeout);
+    _log('PUT', uri, body, response);
     await _check(response);
     return response;
   }
