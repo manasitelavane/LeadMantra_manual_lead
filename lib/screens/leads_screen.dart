@@ -29,6 +29,14 @@ class LeadsScreen extends StatefulWidget {
 
 class _LeadsScreenState extends State<LeadsScreen> {
   bool _isSyncing = false;
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   List<Lead> get _leads {
     switch (widget.type) {
@@ -36,6 +44,17 @@ class _LeadsScreenState extends State<LeadsScreen> {
       case LeadType.uploaded: return LeadService.instance.uploadedLeads;
       case LeadType.offline:  return LeadService.instance.offlineLeads;
     }
+  }
+
+  List<Lead> get _filteredLeads {
+    if (_query.isEmpty) return _leads;
+    final q = _query.toLowerCase();
+    return _leads.where((l) =>
+      l.name.toLowerCase().contains(q) ||
+      l.contactPerson.toLowerCase().contains(q) ||
+      l.phone.toLowerCase().contains(q) ||
+      l.email.toLowerCase().contains(q),
+    ).toList();
   }
 
   Future<void> _sync() async {
@@ -114,48 +133,107 @@ class _LeadsScreenState extends State<LeadsScreen> {
       body: ListenableBuilder(
         listenable: LeadService.instance,
         builder: (context, _) {
-          final leads = _leads;
-          if (leads.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    widget.type == LeadType.offline
-                        ? Icons.wifi_off_rounded
-                        : Icons.people_alt_rounded,
-                    size: 56,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No ${widget.type.label.toLowerCase()} yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (widget.type == LeadType.offline) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'All leads are synced!',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green.shade400,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }
+          final leads = _filteredLeads;
+          final hasLeads = _leads.isNotEmpty;
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: leads.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _LeadCard(lead: leads[i]),
+          return Column(
+            children: [
+              // ── Search bar ──────────────────────────────────────────
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v.trim()),
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Search leads...',
+                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        size: 18, color: AppTheme.primary),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded,
+                                size: 16, color: AppTheme.primary),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _query = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: const Color(0xFFF8F9FF),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: Color(0xFFE8EAF6), width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: AppTheme.primary, width: 1.5),
+                    ),
+                    isDense: true,
+                  ),
+                ),
+              ),
+
+              // ── List / empty state ──────────────────────────────────
+              Expanded(
+                child: leads.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _query.isNotEmpty
+                                  ? Icons.search_off_rounded
+                                  : widget.type == LeadType.offline
+                                      ? Icons.wifi_off_rounded
+                                      : Icons.people_alt_rounded,
+                              size: 56,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _query.isNotEmpty
+                                  ? 'No leads match your search'
+                                  : 'No ${widget.type.label.toLowerCase()} yet',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade500,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (widget.type == LeadType.offline &&
+                                !hasLeads) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'All leads are synced!',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green.shade400,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: leads.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) => _LeadCard(lead: leads[i]),
+                      ),
+              ),
+            ],
           );
         },
       ),
