@@ -6,6 +6,7 @@ import '../core/theme.dart';
 import '../services/auth_service.dart';
 import '../services/lead_service.dart';
 import 'delete_account_screen.dart';
+import 'calendar_screen.dart';
 import 'leads_screen.dart';
 import 'new_lead_screen.dart';
 import 'total_leads_screen.dart';
@@ -119,6 +120,16 @@ class DashboardScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const NewLeadScreen()),
+                );
+              }),
+
+              const SizedBox(height: 12),
+
+              // ── 4. Calendar button ──────────────────────────────────
+              _CalendarButton(onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CalendarScreen()),
                 );
               }),
             ],
@@ -407,6 +418,40 @@ class _StatItem extends StatelessWidget {
         ],
       ),
     ),
+    );
+  }
+}
+
+// ── Calendar button ──────────────────────────────────────────────────────────
+
+class _CalendarButton extends StatelessWidget {
+  const _CalendarButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppTheme.primary,
+          side: const BorderSide(color: AppTheme.primary, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        onPressed: onTap,
+        icon: const Icon(Icons.calendar_month_rounded, size: 20),
+        label: const Text(
+          'Your Calendar',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+          ),
+        ),
+      ),
     );
   }
 }
