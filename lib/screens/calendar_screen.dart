@@ -24,13 +24,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final now = DateTime.now();
     _displayed = DateTime(now.year, now.month);
     _selected = DateTime(now.year, now.month, now.day);
+    CalendarService.instance.loadDropdowns();
+    CalendarService.instance.loadMonthGrid(_displayed);
+    CalendarService.instance.loadNotesForDate(_selected);
   }
 
-  void _prevMonth() =>
-      setState(() => _displayed = DateTime(_displayed.year, _displayed.month - 1));
+  void _prevMonth() {
+    final m = DateTime(_displayed.year, _displayed.month - 1);
+    setState(() => _displayed = m);
+    CalendarService.instance.loadMonthGrid(m);
+  }
 
-  void _nextMonth() =>
-      setState(() => _displayed = DateTime(_displayed.year, _displayed.month + 1));
+  void _nextMonth() {
+    final m = DateTime(_displayed.year, _displayed.month + 1);
+    setState(() => _displayed = m);
+    CalendarService.instance.loadMonthGrid(m);
+  }
+
+  void _onNoteChanged() {
+    CalendarService.instance.loadMonthGrid(_displayed);
+    CalendarService.instance.loadNotesForDate(_selected);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +55,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.list_alt_rounded, color: AppTheme.primary),
-            tooltip: 'View All Events',
+            tooltip: 'View All Notes',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const EventListScreen()),
@@ -54,7 +68,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         builder: (context, _) {
           return Column(
             children: [
-              // ── Calendar card ──────────────────────────────────────
+              // ── Calendar card ─────────────────────────────────────────────
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 padding: const EdgeInsets.all(16),
@@ -82,25 +96,41 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     _CalendarGrid(
                       displayed: _displayed,
                       selected: _selected,
-                      onDayTap: (d) => setState(() => _selected = d),
+                      onDayTap: (d) {
+                        setState(() => _selected = d);
+                        CalendarService.instance.loadNotesForDate(d);
+                      },
                     ),
+                    if (CalendarService.instance.isLoadingGrid)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: LinearProgressIndicator(
+                          minHeight: 2,
+                          color: AppTheme.primary.withValues(alpha: 0.5),
+                          backgroundColor: Colors.transparent,
+                        ),
+                      ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // ── Events for selected day ────────────────────────────
+              // ── Notes for selected day ────────────────────────────────────
               Expanded(
                 child: _SelectedDayPanel(
                   date: _selected,
-                  onAddTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AddEditEventScreen(initialDate: _selected),
-                    ),
-                  ),
+                  onAddTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AddEditEventScreen(initialDate: _selected),
+                      ),
+                    );
+                    if (mounted) _onNoteChanged();
+                  },
+                  onNoteChanged: _onNoteChanged,
                 ),
               ),
             ],
@@ -110,12 +140,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AddEditEventScreen(initialDate: _selected),
-          ),
-        ),
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AddEditEventScreen(initialDate: _selected),
+            ),
+          );
+          if (mounted) _onNoteChanged();
+        },
         child: const Icon(Icons.add_rounded),
       ),
     );
@@ -218,18 +251,16 @@ class _CalendarGrid extends StatelessWidget {
     final year = displayed.year;
     final month = displayed.month;
     final daysInMonth = DateTime(year, month + 1, 0).day;
-    // Flutter: weekday 1=Mon...7=Sun. We want Sun=0 offset.
     final firstWeekday = DateTime(year, month, 1).weekday % 7;
     final today = DateTime.now();
 
     final cells = <Widget>[];
 
-    // Leading empty cells
-    for (int i = 0; i < firstWeekday; i++) {
-      cells.add(const SizedBox());
+    final prevMonthDays = DateTime(year, month, 0).day;
+    for (int i = firstWeekday - 1; i >= 0; i--) {
+      cells.add(_GreyDayCell(day: prevMonthDays - i));
     }
 
-    // Day cells
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(year, month, day);
       final isToday = date.year == today.year &&
@@ -238,16 +269,25 @@ class _CalendarGrid extends StatelessWidget {
       final isSelected = date.year == selected.year &&
           date.month == selected.month &&
           date.day == selected.day;
-      final hasEvents =
-          CalendarService.instance.eventsForDate(date).isNotEmpty;
+
+      final dayData = CalendarService.instance.getDayData(date);
+      final hasEvents = (dayData?['total'] as int? ?? 0) > 0;
+      final isOverdue = dayData?['has_overdue'] as bool? ?? false;
 
       cells.add(_DayCell(
         day: day,
         isToday: isToday,
         isSelected: isSelected,
         hasEvents: hasEvents,
+        isOverdue: isOverdue,
         onTap: () => onDayTap(date),
       ));
+    }
+
+    final totalCells = firstWeekday + daysInMonth;
+    final trailingCount = totalCells % 7 == 0 ? 0 : 7 - (totalCells % 7);
+    for (int i = 1; i <= trailingCount; i++) {
+      cells.add(_GreyDayCell(day: i));
     }
 
     return GridView.count(
@@ -268,6 +308,7 @@ class _DayCell extends StatelessWidget {
     required this.isToday,
     required this.isSelected,
     required this.hasEvents,
+    required this.isOverdue,
     required this.onTap,
   });
 
@@ -275,6 +316,7 @@ class _DayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool hasEvents;
+  final bool isOverdue;
   final VoidCallback onTap;
 
   @override
@@ -289,6 +331,10 @@ class _DayCell extends StatelessWidget {
       bgColor = AppTheme.primary.withValues(alpha: 0.12);
       textColor = AppTheme.primary;
     }
+
+    final dotColor = isOverdue
+        ? Colors.red.shade400
+        : (isToday ? Colors.white70 : AppTheme.accent);
 
     return GestureDetector(
       onTap: onTap,
@@ -307,8 +353,7 @@ class _DayCell extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   color: textColor,
-                  fontWeight:
-                      isToday ? FontWeight.w700 : FontWeight.normal,
+                  fontWeight: isToday ? FontWeight.w700 : FontWeight.normal,
                 ),
               ),
             ),
@@ -319,7 +364,7 @@ class _DayCell extends StatelessWidget {
               height: 4,
               margin: const EdgeInsets.only(top: 2),
               decoration: BoxDecoration(
-                color: isToday ? Colors.white70 : AppTheme.accent,
+                color: dotColor,
                 shape: BoxShape.circle,
               ),
             ),
@@ -329,13 +374,35 @@ class _DayCell extends StatelessWidget {
   }
 }
 
+// ── Grey day cell (prev / next month) ────────────────────────────────────────
+
+class _GreyDayCell extends StatelessWidget {
+  const _GreyDayCell({required this.day});
+  final int day;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        '$day',
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade300),
+      ),
+    );
+  }
+}
+
 // ── Selected day panel ────────────────────────────────────────────────────────
 
 class _SelectedDayPanel extends StatelessWidget {
-  const _SelectedDayPanel({required this.date, required this.onAddTap});
+  const _SelectedDayPanel({
+    required this.date,
+    required this.onAddTap,
+    required this.onNoteChanged,
+  });
 
   final DateTime date;
   final VoidCallback onAddTap;
+  final VoidCallback onNoteChanged;
 
   String _formatDate(DateTime d) {
     const months = [
@@ -347,7 +414,10 @@ class _SelectedDayPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final events = CalendarService.instance.eventsForDate(date);
+    final svc = CalendarService.instance;
+    final notes = svc.getNotesForDate(date);
+    final isLoading = svc.isLoadingNotes;
+    final hasError = svc.notesError != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,14 +440,14 @@ class _SelectedDayPanel extends StatelessWidget {
                 onPressed: onAddTap,
                 icon: const Icon(Icons.add_rounded,
                     size: 16, color: AppTheme.primary),
-                label: const Text('Add Event',
+                label: const Text('Add Note',
                     style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.primary,
                         fontWeight: FontWeight.w600)),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
@@ -385,13 +455,32 @@ class _SelectedDayPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        if (events.isEmpty)
+        if (isLoading && notes.isEmpty)
+          const Expanded(
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppTheme.primary),
+              ),
+            ),
+          )
+        else if (hasError && notes.isEmpty)
           Expanded(
             child: Center(
               child: Text(
-                'No events on this day',
-                style: TextStyle(
-                    fontSize: 13, color: Colors.grey.shade400),
+                svc.notesError!,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              ),
+            ),
+          )
+        else if (notes.isEmpty)
+          Expanded(
+            child: Center(
+              child: Text(
+                'No notes on this day',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
               ),
             ),
           )
@@ -399,10 +488,12 @@ class _SelectedDayPanel extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              itemCount: events.length,
+              itemCount: notes.length,
               separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (_, i) =>
-                  _DayEventTile(event: events[i]),
+              itemBuilder: (_, i) => _DayNoteTile(
+                event: notes[i],
+                onNoteChanged: onNoteChanged,
+              ),
             ),
           ),
       ],
@@ -410,14 +501,67 @@ class _SelectedDayPanel extends StatelessWidget {
   }
 }
 
-// ── Day event tile ────────────────────────────────────────────────────────────
+// ── Day note tile ─────────────────────────────────────────────────────────────
 
-class _DayEventTile extends StatelessWidget {
-  const _DayEventTile({required this.event});
+class _DayNoteTile extends StatelessWidget {
+  const _DayNoteTile({
+    required this.event,
+    required this.onNoteChanged,
+  });
+
   final CalendarEvent event;
+  final VoidCallback onNoteChanged;
+
+  Future<void> _delete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Note',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        content: const Text('Are you sure you want to delete this note?',
+            style: TextStyle(fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Delete',
+                style: TextStyle(color: Colors.red.shade600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await CalendarService.instance.deleteNote(event.id);
+    if (result.success) {
+      onNoteChanged();
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Failed to delete note'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
+  }
+
+  static const _statusColors = {
+    'done':      Color(0xFF22C55E),
+    'cancelled': Color(0xFF94A3B8),
+  };
 
   @override
   Widget build(BuildContext context) {
+    final statusColor =
+        _statusColors[event.status] ?? const Color(0xFF3B82F6);
+    final recurrenceLabel =
+        CalendarService.instance.recurrenceLabel(event.recurrence);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -439,7 +583,7 @@ class _DayEventTile extends StatelessWidget {
             width: 4,
             height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primary,
+              color: statusColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -457,31 +601,34 @@ class _DayEventTile extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (event.recurrence != 'Does not repeat') ...[
-                  const SizedBox(height: 4),
+                if (event.recurrence != 'none') ...[
+                  const SizedBox(height: 3),
                   Row(
                     children: [
                       Icon(Icons.repeat_rounded,
-                          size: 11,
-                          color: Colors.grey.shade400),
+                          size: 11, color: Colors.grey.shade400),
                       const SizedBox(width: 3),
-                      Text(event.recurrence,
+                      Text(recurrenceLabel,
                           style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade400)),
+                              fontSize: 11, color: Colors.grey.shade400)),
                     ],
                   ),
                 ],
               ],
             ),
           ),
+          const SizedBox(width: 8),
+          // Edit button
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AddEditEventScreen(event: event),
-              ),
-            ),
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AddEditEventScreen(event: event),
+                ),
+              );
+              onNoteChanged();
+            },
             child: Container(
               width: 30,
               height: 30,
@@ -491,6 +638,21 @@ class _DayEventTile extends StatelessWidget {
               ),
               child: const Icon(Icons.edit_rounded,
                   size: 14, color: AppTheme.primary),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Delete button
+          GestureDetector(
+            onTap: () => _delete(context),
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.delete_outline_rounded,
+                  size: 14, color: Colors.red.shade400),
             ),
           ),
         ],

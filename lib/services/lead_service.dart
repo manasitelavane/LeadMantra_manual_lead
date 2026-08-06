@@ -251,7 +251,7 @@ class LeadService extends ChangeNotifier {
         }
       }
 
-      final response = await ApiClient.put(
+      final response = await ApiClient.post(
         Uri.parse(ApiEndpoint.updateLead(lead.backendId!)),
         body: body,
       );
@@ -416,7 +416,7 @@ class LeadService extends ChangeNotifier {
           body['lost_reason_note'] = lostReasonNote;
         }
       }
-      final response = await ApiClient.put(
+      final response = await ApiClient.post(
         Uri.parse(ApiEndpoint.updateLead(backendId)),
         body: body,
       );

@@ -6,8 +6,19 @@ import '../models/calendar_event.dart';
 import '../services/calendar_service.dart';
 import 'add_edit_event_screen.dart';
 
-class EventListScreen extends StatelessWidget {
+class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
+
+  @override
+  State<EventListScreen> createState() => _EventListScreenState();
+}
+
+class _EventListScreenState extends State<EventListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    CalendarService.instance.loadAllNotes();
+  }
 
   String _formatDate(DateTime d) {
     const months = [
@@ -17,15 +28,16 @@ class EventListScreen extends StatelessWidget {
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
-  Future<void> _confirmDelete(BuildContext context, CalendarEvent event) async {
+  Future<void> _confirmDelete(
+      BuildContext context, CalendarEvent event) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Event',
+        title: const Text('Delete Note',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        content: const Text('Are you sure you want to delete this event?',
+        content: const Text('Are you sure you want to delete this note?',
             style: TextStyle(fontSize: 14)),
         actions: [
           TextButton(
@@ -40,8 +52,18 @@ class EventListScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      CalendarService.instance.deleteEvent(event.id);
+    if (confirmed != true) return;
+
+    final result = await CalendarService.instance.deleteNote(event.id);
+    if (result.success) {
+      CalendarService.instance.loadAllNotes();
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Failed to delete note'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
     }
   }
 
@@ -49,13 +71,44 @@ class EventListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: const LeadMantraAppBar(title: 'All Events'),
+      appBar: const LeadMantraAppBar(title: 'All Notes'),
       body: ListenableBuilder(
         listenable: CalendarService.instance,
         builder: (context, _) {
-          final events = CalendarService.instance.events;
+          final svc = CalendarService.instance;
 
-          if (events.isEmpty) {
+          if (svc.isLoadingAll && svc.allNotes.isEmpty) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            );
+          }
+
+          if (svc.allNotesError != null && svc.allNotes.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.wifi_off_rounded,
+                      size: 40, color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
+                  Text(
+                    svc.allNotesError!,
+                    style: TextStyle(
+                        fontSize: 14, color: Colors.grey.shade500),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () =>
+                        CalendarService.instance.loadAllNotes(),
+                    child: const Text('Retry',
+                        style: TextStyle(color: AppTheme.primary)),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (svc.allNotes.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -64,7 +117,7 @@ class EventListScreen extends StatelessWidget {
                       size: 56, color: Colors.grey.shade300),
                   const SizedBox(height: 12),
                   Text(
-                    'No events scheduled yet',
+                    'No notes scheduled yet',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
@@ -76,8 +129,7 @@ class EventListScreen extends StatelessWidget {
             );
           }
 
-          // Sort by follow-up date (events with dates first, then by date)
-          final sorted = [...events]..sort((a, b) {
+          final sorted = [...svc.allNotes]..sort((a, b) {
               if (a.followUpDate == null && b.followUpDate == null) return 0;
               if (a.followUpDate == null) return 1;
               if (b.followUpDate == null) return -1;
@@ -88,15 +140,18 @@ class EventListScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: sorted.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _EventCard(
+            itemBuilder: (_, i) => _NoteCard(
               event: sorted[i],
               formatDate: _formatDate,
-              onEdit: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddEditEventScreen(event: sorted[i]),
-                ),
-              ),
+              onEdit: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddEditEventScreen(event: sorted[i]),
+                  ),
+                );
+                CalendarService.instance.loadAllNotes();
+              },
               onDelete: () => _confirmDelete(context, sorted[i]),
             ),
           );
@@ -106,10 +161,10 @@ class EventListScreen extends StatelessWidget {
   }
 }
 
-// ── Event card ────────────────────────────────────────────────────────────────
+// ── Note card ─────────────────────────────────────────────────────────────────
 
-class _EventCard extends StatelessWidget {
-  const _EventCard({
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({
     required this.event,
     required this.formatDate,
     required this.onEdit,
@@ -123,6 +178,9 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final recurrenceLabel =
+        CalendarService.instance.recurrenceLabel(event.recurrence);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -139,7 +197,6 @@ class _EventCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Note + action buttons
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -157,14 +214,12 @@ class _EventCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Edit
               _ActionBtn(
                 icon: Icons.edit_rounded,
                 color: AppTheme.primary,
                 onTap: onEdit,
               ),
               const SizedBox(width: 6),
-              // Delete
               _ActionBtn(
                 icon: Icons.delete_outline_rounded,
                 color: Colors.red.shade400,
@@ -175,30 +230,33 @@ class _EventCard extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          // Meta row
           Wrap(
-            spacing: 12,
+            spacing: 8,
             runSpacing: 6,
             children: [
+              _StatusBadge(status: event.status),
               if (event.followUpDate != null)
                 _MetaChip(
                   icon: Icons.calendar_today_rounded,
                   label: formatDate(event.followUpDate!),
                   color: AppTheme.primary,
                 ),
-              if (event.recurrence != 'Does not repeat')
+              if (event.recurrence != 'none')
                 _MetaChip(
                   icon: Icons.repeat_rounded,
-                  label: event.recurrence,
+                  label: recurrenceLabel,
                   color: Colors.orange,
                 ),
-              if (event.assignTo.isNotEmpty &&
-                  !event.assignTo.contains('Unassigned'))
+              if (event.isOverdue)
+                _MetaChip(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'Overdue',
+                  color: Colors.red,
+                ),
+              if (event.assigneeName.isNotEmpty)
                 _MetaChip(
                   icon: Icons.person_outline_rounded,
-                  label: event.assignTo
-                      .replaceAll('— ', '')
-                      .replaceAll(' —', ''),
+                  label: event.assigneeName,
                   color: Colors.teal,
                 ),
             ],
@@ -228,6 +286,48 @@ class _ActionBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 15, color: color),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+  final String status;
+
+  static const _map = {
+    'done':      ('Done',      Color(0xFF22C55E)),
+    'cancelled': ('Cancelled', Color(0xFF94A3B8)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) =
+        _map[status] ?? ('Pending', const Color(0xFF3B82F6));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

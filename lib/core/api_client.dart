@@ -60,6 +60,18 @@ class ApiClient {
     return response;
   }
 
+  static Future<http.Response> get(
+    Uri uri, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final response = await http
+        .get(uri, headers: _headers())
+        .timeout(timeout);
+    _log('GET', uri, {}, response);
+    await _check(response);
+    return response;
+  }
+
   static Future<http.Response> put(
     Uri uri, {
     required Map<String, dynamic> body,
