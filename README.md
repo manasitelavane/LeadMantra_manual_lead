@@ -2,32 +2,36 @@
 
 > **Never Miss a Lead Again — WhatsApp-First CRM Built for India**
 
-LeadMantra CRM is a cross-platform Flutter application that delivers a streamlined lead and account management experience. It features WhatsApp-first workflows, secure authentication, session persistence, and an extensible CRM architecture designed for Indian businesses.
+LeadMantra CRM is a Flutter application that delivers streamlined lead management and calendar-based follow-up tracking. It features WhatsApp-first workflows, offline lead capture with background sync, secure token-based authentication, and an in-app calendar with recurring notes — built specifically for Indian sales teams.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [Screenshots & App Flow](#app-flow)
+- [App Flow](#app-flow)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [API Reference](#api-reference)
 - [Architecture Overview](#architecture-overview)
-- [Contributing](#contributing)
+- [Android Release Signing](#android-release-signing)
 
 ---
 
 ## Features
 
-- 🔐 **Email/Password Authentication** — Secure login with token-based session management
-- 💾 **Session Persistence** — Auto-restores dashboard on app relaunch using SharedPreferences
-- 📋 **Policy Agreement Flow** — One-time privacy policy acceptance with WebView display
-- 📊 **Dashboard** — Central hub for CRM actions after login
-- 🗑️ **Delete Account** — Safe, API-backed account deletion with user confirmation
-- 🌐 **In-App WebView** — Renders privacy policy without leaving the app
-- 🎨 **Consistent Theming** — Centralized Material Design color scheme
+- **Authentication** — Email/password login, token-based sessions, auto-restore on relaunch. Token-not-generated (403) shows a popup directing the user to their admin.
+- **Lead Management** — Create, view, edit, and filter leads with pagination from the server.
+- **Offline Capture** — Leads saved offline when no internet, synced in batch on the next connection.
+- **Search** — Local search across uploaded and offline leads by name, phone, email, or company.
+- **Phone Validation** — 10-digit validation + start-digit check (must begin 6–9 for valid Indian mobile numbers).
+- **Calendar** — Month grid view with dot indicators (orange for overdue days). Tap any day to see its notes.
+- **Calendar Notes CRUD** — Create, edit, and delete notes with follow-up date, recurrence, status, and assignee (admins only).
+- **Recurrence** — Notes marked Done auto-generate the next occurrence; a dialog confirms the new date.
+- **Security** — Automatic logout on `account_deleted`, `company_deleted`, `session_invalid`, or `user_identity_required` response codes.
+- **X-User-Id Header** — Sent on every authenticated request to satisfy server-side identity checks.
+- **Delete Account** — Safe, API-backed account deletion with user confirmation.
 
 ---
 
@@ -39,23 +43,52 @@ App Start
     ▼
 AuthService.init()
     │
-    ├─── Policy not accepted? ──► PolicyAgreementScreen (WebView + "I Agree" button)
-    │                                       │
-    │                                       ▼
-    ├─── No saved session? ─────────► LoginScreen
-    │                                       │
-    │                             AuthService.login()
-    │                                       │
-    │                               POST /api/mobile/login
-    │                                       │
-    │                           Save session to SharedPreferences
-    │                                       │
-    └─── Session exists? ───────────► DashboardScreen
-                                           │
-                         ┌─────────────────┼────────────────────┐
-                         ▼                 ▼                     ▼
-               PrivacyPolicyScreen      Logout            DeleteAccountScreen
-               (WebView)            (Clear session)     (POST /delete-account)
+    ├── Policy not accepted? ──► PolicyAgreementScreen (WebView + "I Agree")
+    │                                    │
+    ├── No saved session? ──────────► LoginScreen
+    │                                    │
+    │                          POST /api/mobile/login
+    │                                    │
+    │                        ┌── 403? ──► "Access Restricted" dialog
+    │                        │            (token not generated — contact admin)
+    │                        └── 200 → save token → DashboardScreen
+    │
+    └── Session exists? ───────────► DashboardScreen
+                                          │
+            ┌─────────────────────────────┼──────────────────────┐
+            ▼                             ▼                       ▼
+     LeadsScreen                   CalendarScreen          DeleteAccountScreen
+          │                               │
+    ┌─────┴──────┐              ┌─────────┴──────────┐
+    ▼            ▼              ▼                     ▼
+TotalLeads  OfflineLeads  Month Grid            EventListScreen
+(paginated)  (local)      + Day Notes            (All Notes)
+    │                          │
+    ▼                     AddEditEventScreen
+EditLeadScreen            (create / edit note)
+    │
+ POST /leads/{id}  (POST alias for edit)
+```
+
+### Calendar Note Flow
+
+```
+CalendarScreen (month grid)
+    │
+    ├── Tap day ──► loadNotesForDate()  ──► display notes in day panel
+    │                                           │
+    │                                    ┌──────┴──────┐
+    │                                    ▼             ▼
+    │                              Edit note      Delete note
+    │                          POST /notes/{id}  POST /notes/{id}/delete
+    │                                    │
+    │                          recurred == true?
+    │                                    │
+    │                          "Next occurrence: [date]" dialog
+    │
+    ├── FAB / "Add Note" ──► AddEditEventScreen ──► POST /calendar/notes
+    │
+    └── AppBar list icon ──► EventListScreen (all notes, sorted by date)
 ```
 
 ---
@@ -69,14 +102,14 @@ AuthService.init()
 | Local Storage | `shared_preferences ^2.2.0` |
 | Web Content | `webview_flutter ^4.13.1` |
 | Linting | `flutter_lints ^6.0.0` |
-| Platforms | Android · iOS · Web · Windows · macOS · Linux |
+| Platforms | Android · iOS |
 
 **Color Scheme:**
 
 | Token | Hex | Usage |
 |---|---|---|
-| Primary | `#1B2B51` | App bar, buttons, accents |
-| Accent | `#F97C32` | Highlights, CTAs |
+| Primary | `#1B2B51` | App bar, buttons, borders |
+| Accent | `#F97C32` | Dot indicators, highlights |
 
 ---
 
@@ -85,28 +118,34 @@ AuthService.init()
 ```
 leadmantra/
 ├── lib/
-│   ├── main.dart                          # Entry point — session routing
+│   ├── main.dart
 │   ├── core/
-│   │   ├── apiendpoint.dart               # Centralized API URL constants
-│   │   └── theme.dart                     # Color tokens & theme helpers
+│   │   ├── api_client.dart          # Central HTTP client (auth headers, logging, logout codes)
+│   │   ├── apiendpoint.dart         # All API URL constants
+│   │   ├── app_bar.dart             # Shared LeadMantraAppBar widget
+│   │   └── theme.dart               # Color tokens
+│   ├── models/
+│   │   ├── lead.dart                # Lead model with toJson / fromJson
+│   │   └── calendar_event.dart      # CalendarEvent model with fromJson
 │   ├── services/
-│   │   └── auth_service.dart              # Auth, session persistence, API calls
+│   │   ├── auth_service.dart        # Login, logout, session persistence, 403 handling
+│   │   ├── lead_service.dart        # Lead CRUD, offline sync, paginated fetch
+│   │   └── calendar_service.dart    # Calendar API: grid, notes CRUD, dropdowns
 │   └── screens/
-│       ├── policy_agreement_screen.dart   # First-launch privacy agreement
-│       ├── login_screen.dart              # Email / password login UI
-│       ├── dashboard_screen.dart          # Post-login CRM dashboard
-│       ├── privacy_policy_screen.dart     # In-app WebView for policy URL
-│       └── delete_account_screen.dart     # Confirmed account deletion flow
-├── assets/
-│   └── images/                            # App logo and UI assets
-│       ├── logo.png
-│       ├── logo_1 1.png
-│       ├── logo_2 1.png
-│       └── logo_3 1.png
-├── android/                               # Android platform project
-├── ios/                                   # iOS platform project
-├── web/                                   # Web platform project
-├── pubspec.yaml                           # Dependencies & asset declarations
+│       ├── policy_agreement_screen.dart
+│       ├── login_screen.dart
+│       ├── dashboard_screen.dart
+│       ├── leads_screen.dart        # Tabbed: Total / Uploaded / Offline + search
+│       ├── new_lead_screen.dart
+│       ├── edit_lead_screen.dart
+│       ├── calendar_screen.dart     # Month grid + day panel
+│       ├── add_edit_event_screen.dart
+│       ├── event_list_screen.dart   # All notes list
+│       ├── privacy_policy_screen.dart
+│       └── delete_account_screen.dart
+├── android/
+├── ios/
+├── pubspec.yaml
 └── README.md
 ```
 
@@ -118,7 +157,7 @@ leadmantra/
 
 - [Flutter SDK](https://flutter.dev/docs/get-started/install) (stable channel)
 - Dart `^3.10.4`
-- Android Studio **or** Xcode (for mobile builds)
+- Android Studio or Xcode (for mobile builds)
 - A connected device or emulator
 
 ### Installation
@@ -128,10 +167,10 @@ leadmantra/
 git clone https://github.com/your-org/leadmantra.git
 cd leadmantra
 
-# 2. Install Flutter dependencies
+# 2. Install dependencies
 flutter pub get
 
-# 3. Run on a connected device / emulator
+# 3. Run on device / emulator
 flutter run
 ```
 
@@ -146,18 +185,6 @@ flutter build appbundle --release
 
 # iOS (requires macOS + Xcode)
 flutter build ios --release
-
-# Web
-flutter build web
-
-# Windows
-flutter build windows
-```
-
-### Tests
-
-```bash
-flutter test
 ```
 
 ---
@@ -166,59 +193,118 @@ flutter test
 
 **Base URL:** `https://leadmantracrm.com/api/mobile`
 
-| Endpoint | Method | Description | Auth Required |
-|---|---|---|---|
-| `/login` | POST | Authenticate user, receive token | No |
-| `/delete-account` | POST | Delete the authenticated user's account | Yes (token) |
+All authenticated requests include:
+```
+Authorization: Bearer <token>
+X-User-Id: <user_id>
+Content-Type: application/json
+```
 
-### Login — Request Body
+### Auth
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/login` | POST | Authenticate, receive token |
+| `/delete-account` | POST | Delete authenticated user's account |
+
+### Leads
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/leads` | POST | Create a new lead |
+| `/leads/list` | POST | Paginated lead list (search, status filter) |
+| `/leads/sync` | POST | Batch sync offline leads |
+| `/leads/{id}` | POST | Edit lead (POST alias — server accepts instead of PUT) |
+
+### Calendar
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/dropdowns?keys=recurrence,assignees,defaults` | GET | Recurrence options, assignee list, `can_assign_others` flag |
+| `/calendar?month=YYYY-MM&timezone=Asia/Kolkata` | GET | Month grid — sparse array of days with note counts |
+| `/calendar/notes?date=YYYY-MM-DD` | GET | Notes for a specific date |
+| `/calendar/notes` | POST | Create a note |
+| `/calendar/notes/{id}` | POST | Edit a note (POST alias) |
+| `/calendar/notes/{id}/delete` | POST | Delete a note (POST alias) |
+
+#### Note create/edit body
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "secret"
+  "note": "Call back about the quote",
+  "follow_up_date": "2026-08-15",
+  "recur_interval": "none",
+  "status": "pending",
+  "assign_to_user_id": 6
 }
 ```
 
-### Login — Response (success)
+`recur_interval` values: `none` · `daily` · `weekly` · `monthly` · `quarterly` · `yearly`  
+`status` values: `pending` · `done` · `cancelled`
+
+#### Edit response (recurring note marked done)
 
 ```json
 {
-  "token": "eyJ...",
-  "token_type": "Bearer",
-  "user": { "id": 42, "name": "Jane Doe" },
-  "company": { "id": 1, "name": "Acme Corp" }
+  "success": true,
+  "recurred": true,
+  "next_note": { "id": 12, "date": "2026-09-15" }
 }
 ```
 
-Session fields saved to `SharedPreferences`: `user_id`, `token`, `token_type`, `user`, `company`.
+The app shows a dialog: *"Next occurrence created for 15 Sep 2026."*
+
+### Automatic logout codes
+
+The server may return `"code"` in any 401 response body. These codes trigger immediate session clear and redirect to login:
+
+| Code | Meaning |
+|---|---|
+| `account_deleted` | User account was removed |
+| `company_deleted` | Company account was removed |
+| `session_invalid` | Token revoked or expired |
+| `user_identity_required` | Missing X-User-Id header |
 
 ---
 
 ## Architecture Overview
 
-### `lib/core/apiendpoint.dart`
-Single source of truth for all backend URLs. Add new endpoint constants here rather than hard-coding strings in screens.
+### `ApiClient`
 
-### `lib/core/theme.dart`
-Holds `AppColors` constants (`primary`, `accent`, etc.) consumed across all screens for visual consistency.
+Central HTTP client (`lib/core/api_client.dart`). All requests go through `ApiClient.post()` or `ApiClient.get()`. It:
+- Attaches `Authorization` and `X-User-Id` headers automatically
+- Prints request/response to the terminal for debugging
+- Calls `AuthService.handleUnauthorized()` on 401 or known logout codes
 
-### `lib/services/auth_service.dart`
-- Sends login / delete-account HTTP requests
-- Serialises and persists the session to `SharedPreferences`
-- Restores session on cold start
-- Exposes `logout()` to clear persisted data
+### `AuthService`
 
-### `lib/main.dart`
-Calls `AuthService.init()` synchronously before `runApp()`, then selects the correct first screen based on:
-1. Policy accepted? → otherwise `PolicyAgreementScreen`
-2. Valid session? → `DashboardScreen` or `LoginScreen`
+- Login, logout, session serialisation to `SharedPreferences`
+- Exposes `currentUserId` (used by `ApiClient` for the `X-User-Id` header)
+- Returns `AuthResult(requiresAdminContact: true)` on 403 → login screen shows an "Access Restricted" dialog
+
+### `LeadService`
+
+- `createLead()` — tries API first; saves locally on failure (offline-first)
+- `fetchLeads()` — paginated server fetch for the Total Leads tab
+- `syncOfflineLeads()` — batch sync via `/leads/sync`; prints `dev_error` and `error` to terminal for any failed operation
+- `updateLead()` — calls `POST /leads/{id}` (POST alias for edit)
+
+### `CalendarService`
+
+- `loadDropdowns()` — fetches recurrence labels and assignee list once and caches; `canAssignOthers` controls visibility of the assignee picker (admins only)
+- `loadMonthGrid()` — sparse day map keyed by `YYYY-MM-DD`; used by the calendar grid for dot indicators
+- `loadNotesForDate()` — cached per-date; cleared after any write operation
+- `loadAllNotes()` — full list for the All Notes screen
+- `createNote()` / `updateNote()` / `deleteNote()` — return `NoteResult` which includes `recurred` and `nextNoteDate` for the recurring dialog
+- All caches are invalidated after any successful write so the next read fetches fresh data
+
+### State management
+
+All services extend `ChangeNotifier`. Screens wrap their body in `ListenableBuilder(listenable: SomeService.instance, ...)` for reactive rebuilds without a third-party state library.
 
 ---
 
 ## Android Release Signing
-
-Keystore details used for Play Store release signing:
 
 | Field | Value |
 |---|---|
@@ -227,22 +313,12 @@ Keystore details used for Play Store release signing:
 | Key password | `LeadMantra@2026` |
 | Keystore password | `LeadMantra@2026` |
 | First & Last Name | Pratik Kulkarni |
-| Organization Unit | OnesNZeros Tech Solutions |
 | Organization | OnesNZeros Tech Solutions |
-| City | Pune |
-| State | Maharashtra |
+| City / State | Pune, Maharashtra |
 | Country Code | IN |
 
-> **Important:** Never commit `leadmantra.jks` to version control. Keep a secure backup — losing this keystore means you cannot publish updates to the app on Play Store.
+> **Important:** Never commit `leadmantra.jks` to version control. Keep a secure offline backup — losing this keystore means you cannot publish updates to Play Store.
 
 ---
 
-## Contributing
-
-1. Fork the repo and create a feature branch: `git checkout -b feature/my-feature`
-2. Run `flutter analyze` and `flutter test` before committing
-3. Open a pull request with a clear description of changes
-
----
-
-*Built with ❤️ for India's sales teams.*
+*Built with ❤️ for India's sales teams by OnesNZeros Tech Solutions.*
